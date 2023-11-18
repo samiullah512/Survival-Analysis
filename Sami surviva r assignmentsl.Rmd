@@ -1,0 +1,513 @@
+---
+title: "Survival Analysis"
+author: "Samiullah"
+date: '2022-07-27'
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Example of Survival Estimation
+
+The following codes is about estimating the survival function.
+The days variable as used as time variable.
+The number of patients alive shows the people at risk at different days.
+Also, include number of deaths at different time.
+The proportion of alive patients was obtained by dividing number of patients alive by total alive as the data have no censored observations.
+Then I have summarized the findings in data frame for understanding.
+At the end I have plot the survival curve as well in step function.
+
+```{r}
+days <- c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 21, 22, 23, 24, 25,
+        26, 27, 28, 29, 30)
+no_of_patients_alive <- c(455, 423, 410, 400, 392, 386, 378, 371, 366, 360, 353, 
+305, 296, 295, 292, 290, 288, 286, 283, 280, 279)
+no_of_deaths <- c(0, 32, 45, 55, 63, 69, 77, 84, 89, 95, 102, 150, 159, 160, 163, 165,
+167, 169, 172, 175, 176)
+total_alive <- 455
+proportion_alive <- c((no_of_patients_alive) / (total_alive))
+print(proportion_alive)
+est_of_surf <- data.frame(days, no_of_patients_alive, no_of_deaths, proportion_alive)
+print(est_of_surf)
+plot(days, proportion_alive, type = "s", xlab = "Days", ylab = "Proportion of Alive")
+```
+
+## Second Example of 24 Patients
+
+Another example is based on the survival data for 24 patients.
+When we have censored observation in the data we do not include the censored observation and its corresponding time.
+But, it is to be noted that when we go to find the survival estimate for the next observation we then include means that the estimated is based on the censored observation upto time t.
+I.e. upto some certain time x patients is survived and some x patients are censored means that left the study.
+The surt_months emphasizes the survival time in months.
+The obs_deaths is the short form of observed deaths.
+Similarly, no_risk is stand for the number of patients at risk.
+The prop variable is the proportions of survived.
+The formula is different from the above example ensures that this data include some censored observations.
+Its need a little expertise in R to multiply the two column cross.
+While to find the final survival estimate it require to cross multiply the proportion column and the estimated column.
+So I estimated the survival function based on the individual value using indexing proportions starting from s1:s8 and then combined using the variable sur_est to get the overall estimates.
+
+## Note
+
+The indexing is easy for small datasets.
+Datasets having large number of observation would be really difficult task for indexing.
+The output at the end the first output upto 7 is the proportions and the second output is the survival estimates.
+
+```{r}
+surt_months <- c(0, 6, 8, 12, 20, 24, 30, 42)
+obs_deaths <- c(0, 4, 2, 2, 1, 1, 1, 1)
+no_risk <- c(24, 23, 19, 17, 10, 8, 4, 1)
+prop <- c((no_risk - obs_deaths) / (no_risk))
+print(prop)
+s1 <- prop[1] * prop[1]
+s2 <- s1 * prop[2]
+s3 <- s2 * prop[3]
+s4 <- s3 * prop[4]
+s5 <- s4 * prop[5]
+s6 <- s5 * prop[6]
+s7 <- s6 * prop[7]
+s8 <- s7 * prop[8]
+sur_est <- c(s1, s2, s3, s4, s5, s6, s7, s8)
+print(sur_est)
+```
+
+## Example
+
+This example is same as the above but the data and variables names are different.
+The time_r stands for time relapse.
+The censd variable shows the censored observations.
+relp stands for relapse.
+Similarly, riskst stands for risk set and cond_prob stands for conditional probability in the above example we used proportion for this term.
+cum_prob Stands cummulative probability or the estimate of the survival function.
+
+```{r}
+time_r <- c(0, 6, 7, 10, 13, 16, 22, 23)
+censd <- c(0, 1, 0, 1, 0, 0, 0, 0)
+relp <- c(0, 3, 1, 1, 1, 1, 1, 1)
+riskst <- c(21, 21, 17, 15, 12, 11, 7, 6)
+cond_prob <- c((riskst - relp) / riskst)
+print(cond_prob)
+c1 <- cond_prob[1] * 1.000
+c2 <- cond_prob[2] * c1
+c3 <- cond_prob[3] * c2
+c4 <- cond_prob[4] * c3
+c5 <- cond_prob[5] * c4
+c6 <- cond_prob[6] * c5
+c7 <- cond_prob[7] * c6
+c8 <- cond_prob[8] * c7
+cum_prob <- c(c1, c2, c3, c4, c5, c6, c7, c8)
+print(cum_prob)
+plot(time_r, cum_prob, type = "s")
+```
+
+## Log-Rank Test
+
+The log-rank test is used to compare to survival curves or two survival estimates.
+The theoretical background and how to compute this is presented by me in my presentation.
+Here I will only consider how to compute this test in R using its generic formulas.
+The formulas are: $e_1f=(n_1f/(n_1f+n_2f))*(m_1f+m_2f)$.
+$e_2f = (n_2f/(n_1f+n_2f))*(m_1f+m_2f)$.
+$Var(O_i-E_i)=\sum(n_1f*n_2f(m_1f+m_2f)(n_1f+n_2f-m_1f-m_2f)/(n_1f+n_2f)^2(n_1f+n_2f-1)$.
+The test statistic is: $Log-rank test = (O - E)^2 / Var(O - E)$, we can take any one of the two groups.
+I have used the leukemia data here for the analysis.
+The following computations are the requirements of the Log-rank test.
+It such time consuming process to calculate it by hand.
+
+```{r}
+t_f <- c(1, 2, 3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 15, 16, 17, 22, 23)
+m1f <- c(0, 0, 0, 0, 0, 3, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1)
+m2f <- c(2, 2, 1, 2, 2, 0, 0, 4, 0, 2, 2, 0, 1, 0, 1, 1, 1)
+n1f <- c(21, 21, 21, 21, 21, 21, 17, 16, 15, 13, 12, 12, 11, 11, 10, 7, 6)
+n2f <- c(21, 19, 17, 16, 14, 12, 12, 12, 8, 8, 6, 4, 4, 3, 3, 2, 1)
+e1f <- c(n1f / (n1f + n2f)*(m1f + m2f))
+print(e1f)
+e2f <- c((n2f / (n1f + n2f) * (m1f + m2f)))
+e2f
+sum_e2f <- sum(e2f)
+sum_e2f
+O1 <- c((m1f - e1f))
+O1
+sum(O1)
+O2 <- c((m2f - e2f))
+sum_O2 <- sum(O2)
+n1f_n2f <- c(n1f * n2f)
+n1f_n2f
+m1f_m2f <- c(m1f + m2f)
+m1f_m2f
+n1f_n2f_m1f_m2f <- c(n1f + n2f - m1f - m2f)
+n1f_n2f_2 <- c((n1f + n2f)^2)
+n1f_n2f_minus_1 <- c((n1f + n2f -1))
+numerator <- c(n1f_n2f*m1f_m2f*n1f_n2f_m1f_m2f)
+sum_numerator <- sum(numerator)
+sum_numerator
+denominator <- c(n1f_n2f_2 * n1f_n2f_minus_1)
+sum_denom <- sum(denominator)
+sum_denom
+total <- c(numerator/denominator)
+sum_total <- sum(total)
+sum_total
+leukemia <- data.frame(t_f, m1f, m2f, n1f, n2f, e1f, e2f, O1, O2, n1f_n2f, m1f_m2f, n1f_n2f_m1f_m2f, n1f_n2f_2, n1f_n2f_minus_1, numerator, denominator, total)
+leukemia
+log_rank_test <- ((sum_O2)^2) / sum_total
+log_rank_test
+```
+
+## Cochran-Mantel Haenszel Test
+
+Chi-Square for Independence, It is simple to evaluate using the chi-square test or Fisher exact test when we have two categorical variables.
+Consider the case when we have three categorical variables and wish to discover how they are related.
+The Cochran--Mantel--Haenszel test, which is an extension of the chi-square test of association, is useful in this scenario.
+
+## What will the Cochran--Mantel--Haenszel test reveal?
+
+The Cochran--Mantel--Haenszel test assesses the significance of categorical variables' associations.
+We'll use the VCD package and the mantelhean.test() function in this example.
+
+## Hypothesis
+
+Let's look at the test hypotheses.
+Ho:-The two inner variables do not have any relationship.
+H1: There is a link between the two inner variables.
+
+```{r}
+library(vcd)
+head(Arthritis)
+```
+
+Treatment, Sex, Age, and Improved are the four factors here.
+The goal is to figure out how these factors are related.
+Consider the following three variables: Treatment, Sex, and Improved.
+
+```{r}
+mantelhaen.test(Arthritis$Treatment,Arthritis$Improved,Arthritis$Sex)
+```
+
+## Conclusion
+
+Because the p-value of 0.0006647 is less than 0.05, the null hypothesis is rejected and the alternate hypothesis is accepted.
+This suggests that at each level of sex, the treatment received and the improvement claimed are not independent.
+Similarly, we can divide the age column into two or more components and measure the relationship.
+
+## Kaplan-Meier Estimate
+
+The Kaplan-Meier (KM) method is non-parametric method used to estimate the survival probability from observed survival times (Kaplan and Meier, 1958).
+the estimated probability St is a step function that changes value only at the time of each event.
+It is possible to compute confidence intervals for the survival probability.
+The KM survival curve, a plot of the KM survival probability against time, provides a useful summary of the data that can be used to estimate measures such as median survival time.
+We will We will use two R Packages.
+For computing survival analysis, we will use survival For summarizing and visualizing the results of survival analysis, will use survminer.
+We will use the cancer data to estimate Kaplan-Meier curves.
+
+```{r}
+library(survival)
+library(survminer)
+data("cancer")
+head(cancer)
+fit <- survfit(Surv(time, status) ~ sex, data = cancer)
+print(fit)
+summary(fit)$table
+d <- data.frame(time = fit$time,
+    n.risk = fit$n.risk,
+    n.event = fit$n.event,
+    n.censor = fit$n.censor,
+    surv = fit$surv,
+    upper = fit$upper,
+    lower = fit$lower)
+head(d)
+ggsurvplot(fit,
+    pval = TRUE, conf.int = TRUE,
+    risk.table = TRUE,
+    risk.table.col = "strata",
+    linetype = "strata",
+    surv.median.line = "hv",
+    ggtheme = theme_bw(),
+    palette = c("#E7B800", "#2E9FDF"))
+ggsurvplot(fit,
+    pval = TRUE,
+    conf.int = T,
+    conf.int.style = "step",
+    xlab = "Times in days",
+    break.time.by = 200,
+    ggtheme = theme_light(),
+    risk.table = "abs_pct",
+    risk.table.y.text.col = T,
+    risk.table.y.text = FALSE,
+    ncensor.plot = T,
+    surv.median.line = "hv",
+    legend.labs = c("Male", "Female"),
+    palette = c("#E7B800", "#2E9FDF"))
+summary(fit)$table
+# Cummulative events
+ggsurvplot(fit,
+            conf.int = T,
+            risk.table.col = "strata",
+            ggtheme = theme_bw(),
+            palette = c("#E7B800", "#2E9FDF"),
+            fun = "event")
+# Cummualtive hazard cumhaz
+ggsurvplot(fit,
+          conf.int = TRUE,
+          risk.table.col = "strata", # Change risk table color by groups
+          ggtheme = theme_bw(), # Change ggplot2 theme
+          palette = c("#E7B800", "#2E9FDF"),
+          fun = "cumhaz")
+# Log-Rank Test for comparing survival of groups
+surv_diff <- survdiff(Surv(time, status) ~ sex, data = cancer)
+print(surv_diff)
+names(surv_diff)
+```
+
+## Cox Proportional Hazard Model
+
+The Cox proportional-hazards model (Cox, 1972) is essentially a regression model commonly used statistical in medical research for investigating the association between the survival time of patients and one or more predictor variables.
+Data from R related Lung Cancer 0time: Survival time in days 0status: censoring status 1=censored, 2=dead 0age: Age in years 0sex: Male=1 Female=2 0ph.ecog: ECOG performance score (0=good 5=dead) 0ph.karno: Karnofsky performance score (bad=0-good=100) rated by physician 0pat.karno: Karnofsky performance score as rated by patient 0meal.cal: Calories consumed at meals 0wt.loss: Weight loss in last six months.
+
+```{r}
+data("cancer")
+head(cancer)
+res.cox <- coxph(Surv(time, status) ~ sex, data = cancer)
+res.cox
+```
+
+## Interpretation
+
+The variable gender is encoded as a numeric vector.
+1: male, 2: female.
+The R summary for the Cox model gives the hazard ratio (HR) for the second group relative to the first group, that is, female versus male.
+The beta coefficient for gender = -0.53 indicates that females have lower risk of death (lower survival rates) than males, in these data.
+
+Hazard ratios.
+The exponentiated coefficients (exp(coef) = exp(-0.53) = 0.59), also known as hazard ratios, give the effect size of covariates.
+For example, being female (gender=2) reduces the hazard by a factor of 0.59, or 41%.
+Being female is associated with good prognostic.
+Means that the rate.
+
+Statistical significance.
+The column marked z gives the Wald statistic value.
+It corresponds to the ratio of each regression coefficient to its standard error $z = coef/se(coef)$.
+The wald statistic evaluates, whether the beta $\beta$ coefficient of a given variable is statistically significantly different from 0.
+From the output above, we can conclude that the variable gender have highly statistically significant coefficients.
+
+```{r}
+reg2 <- coxph(formula = Surv(time,status)~sex+age+ph.ecog+ph.karno+wt.loss, data = cancer)
+reg2
+```
+
+The variables sex and ph.ecog have highly statistically significant coefficients, while the coefficient for ph.karno, age and wt.loss is not significant.
+
+Age, ph.ecog and ph.karno have positive beta coefficients, while gender and wt loss has a negative coefficient.
+Thus, older age and higher ph.ecog & karno are associated with poorer survival, whereas being female (sex=2) is associated with better survival.
+
+```{r}
+res.cox <- coxph(Surv(time, status)~ age + sex + wt.loss, data = cancer)
+res.cox
+```
+
+## Proportion Hazard Satisfaction
+
+```{r}
+test.ph <- cox.zph(res.cox)
+test.ph
+```
+
+From the output above, the test is not statistically significant for each of the covariates and the global is also not statistically significant.
+Therefore we can assume the proportional hazard assumption.
+
+## Parametric Survival Methods
+
+## Shapes of Hazard functions
+
+We will now examine the shapes of the hazards in a bit more detail and show how both the location and shape vary with the parameters of each distribution.
+
+To do so we will load some needed packages: we will use flexsurv to compute the hazards, data.table as a fast alternative to data.frame, and ggplot2 for plotting.
+
+```{r}
+library("flexsurv")
+library("data.table")
+library("ggplot2")
+ggplot2::theme_set(theme_minimal())
+```
+
+We can create a general function for computing hazards for any general hazard function given combinations of parameter values at different time points.
+The key to the function is mapply, a multivariate version of sapply.
+To illustrate, let's compute the hazard from a Weibull distribution given 3 values each of the shape and scale parameters at time points 1 and 2.
+The output is a matrix where each row corresponds to a time point and each column is combination of the shape and scale parameters.
+For example, the second row and third column is the hazard at time point 2 given a shape parameter of 1.5 and a scale parameter of 1.75.
+
+```{r}
+mapply(flexsurv::hweibull, 
+       shape = c(.5, 1, 1.5),
+       scale = c(.25, 1, 1.75),
+       MoreArgs = list(x = 1:2))
+```
+
+The more general function uses mapply to return a data.table of hazards at all possible combinations of the parameter values and time points.
+Factor variables and intuitive names are also returned to facilitate plotting with ggplot2.
+
+```{r}
+hazfun <- function(FUN, param_vals, times){
+  # Compute hazard for all possible combinations of parameters and times
+  values <- do.call("mapply", c(list(FUN = FUN),
+                                as.list(expand.grid(param_vals)),
+                                list(MoreArgs = list(x = times))))
+  x <- data.table(expand.grid(c(param_vals, list(time = times))),
+                  value = c(t(values)))
+  
+  # Create factor variables and intuitive names for plotting
+  param_names <- names(param_vals)
+  x[[param_names[1]]] <- factor(x[[param_names[1]]],
+                                levels = unique(x[[param_names[1]]]))
+  if (length(param_vals) > 1){
+    for (j in 2:length(param_vals)){
+      ordered_vals <- unique(x[[param_names[j]]])
+      x[[param_names[j]]] <- paste0(param_names[j], " = ", x[[param_names[j]]])
+      factor_levels <- paste0(param_names[j], " = ", ordered_vals)
+      x[[param_names[j]]] <- factor(x[[param_names[j]]],
+                                    levels = factor_levels)
+    }
+  }
+  
+  # Return
+  return(x)
+}
+```
+
+## Exponential Distribution
+
+The exponential distribution is parameterized by a single rate parameter and only supports a hazard that is constant over time.
+The hazard is simply equal to the rate parameter.
+
+```{r}
+times <- seq(1, 10, 1)
+rate <- seq(1, 5, 1)
+haz_exp <- hazfun(flexsurv::hexp, 
+                  list(rate = rate),
+                  times = times)
+ggplot(haz_exp, aes(x = time, y = value, col = rate)) +
+  geom_line() + xlab("Time") + ylab("Hazard") +
+  scale_y_continuous(breaks = rate) 
+```
+
+## Weibull Distribution Accelerated Failure Time(AFT)
+
+The Weibull distribution can be parameterized as both an accelerated failure time (AFT) model or as a proportional hazards (PH) model.
+The parameterization in the base stats package is an AFT model.
+
+The hazard is decreasing for shape parameter $a < 1$ and increasing for $a > 1$.
+For $a = 1$, the Weibull distribution is equivalent to an exponential distribution with rate parameter $1/b$ where $b$ is the scale parameter.
+
+```{r}
+wei_shape <- seq(.25, 3, .25)
+haz_wei <- hazfun(flexsurv::hweibull, 
+                  list(scale = seq(2, 5, .5),
+                       shape = wei_shape),
+                  times = times)
+ggplot(haz_wei, aes(x = time, y = value, col = scale)) +
+  geom_line() + facet_wrap(~shape, scales = "free_y") +
+  xlab("Time") + ylab("Hazard") 
+```
+
+## Weibull distribution (PH)
+
+flexsurv provides an alternative PH parameterization of the Weibull model with the same shape parameter $a$ and a scale parameter $m = b^{-a}$ where $b$ is the scale parameter in the AFT model.
+
+The hazard is again decreasing for $a < 1$, constant for $a = 1$, and increasing for $a > 1$.
+Note that for $a = 1$, the PH Weibull distribution is equivalent to an exponential distribution with rate parameter $m$.
+
+```{r}
+haz_weiPH <- hazfun(flexsurv::hweibullPH, 
+                  list(scale = seq(2, 5, .5),
+                       shape = wei_shape),
+                  times = times)
+ggplot(haz_weiPH, aes(x = time, y = value, col = scale)) +
+  geom_line() + facet_wrap(~shape, scales = "free_y") +
+  xlab("Time") + ylab("Hazard") 
+```
+
+## Gompertz distribution
+
+The Gompertz distribution is parameterized by a shape parameter $a$ and rate parameter $b$.
+The hazard is increasing for $a > 0$, constant for $a = 0$, and decreasing for $a < 0$.
+When $a = 0$, the Gompertz distribution is equivalent to an exponential distribution with rate parameter $b$.
+
+```{r}
+haz_gomp <- hazfun(flexsurv::hgompertz, 
+                  list(rate = seq(.5, 3, .5),
+                       shape = seq(-2, 2, .5)),
+                  times = times)
+ggplot(haz_gomp, aes(x = time, y = value, col = rate)) +
+  geom_line() + facet_wrap(~shape, scales = "free_y") +
+  xlab("Time") + ylab("Hazard") 
+```
+
+## Gamma distribution
+
+The gamma distribution is parameterized by a shape parameter $a$ and a rate parameter $b$.
+Like the Weibull distribution, the hazard is decreasing for $a < 1$, constant for $a = 1$, and increasing for $a >1$.
+In the case where $a = 1$, the gamma distribution is an exponential distribution with rate parameter $b$.
+
+```{r}
+haz_gam <- hazfun(flexsurv::hgamma, 
+                  list(rate = seq(.5, 3, .5),
+                       shape = c(1e-5, .5, 1, seq(2, 6))),
+                  times = times)
+ggplot(haz_gam, aes(x = time, y = value, col = rate)) +
+  geom_line() + facet_wrap(~shape, scales = "free_y") +
+  xlab("Time") + ylab("Hazard") 
+```
+
+## Lognormal distribution
+
+The lognormal distribution is parameterized by the mean $\mu$ and standard deviation $\sigma$ of survival time on the log scale.
+The lognormal hazard is either monotonically decreasing or arc-shaped.
+Note that the shape of the hazard depends on the values of both $\mu$ and $\sigma$.
+
+```{r}
+haz_lnorm <- hazfun(flexsurv::hlnorm, 
+                    list(meanlog = seq(0, 4, .5),
+                         sdlog = seq(.5, 3, .5)),
+                  times = seq(0, 20, .1))
+ggplot(haz_lnorm, aes(x = time, y = value, col = meanlog)) +
+  geom_line() + facet_wrap(~sdlog, scales = "free_y") +
+  xlab("Time") + ylab("Hazard") 
+```
+
+## Log-logistic distribution
+
+The log-logistic distribution is parameterized by a shape parameter $a$ and a scale parameter $b$.
+When $a > 1$, the hazard function is arc-shaped whereas when $a \leq 1$, the hazard function is decreasing monotonically.
+
+```{r}
+haz_llogis <- hazfun(flexsurv::hllogis, 
+                    list(scale = seq(.5, 4, .5),
+                         shape = seq(.5, 3, .5)),
+                  times = seq(0, 20, 1))
+ggplot(haz_llogis, aes(x = time, y = value, col = scale)) +
+  geom_line() + facet_wrap(~shape, scales = "free_y") +
+  xlab("Time") + ylab("Hazard")
+```
+
+## Generalized gamma distribution
+
+The generalized gamma distribution is parameterized by a location parameter $\mu$, a scale parameter $\sigma$, and a shape parameter $Q$.
+It is the most flexible distribution reviewed in this post and includes the exponential ($Q = \sigma = 1$), Weibull ($Q = 1$), gamma ($Q = \sigma$), and lognormal ($Q = 0$) distributions as special cases.
+
+Each row in the figure corresponds to a unique value of $\sigma$ and each column corresponds to a unique value of $Q$.The generalized gamma distribution is quite flexible as it supports hazard functions that are monotonically increasing, monotonically decreasing, arc-shaped, and bathtub shaped.
+
+```{r}
+haz_gengamma <- hazfun(flexsurv::hgengamma, 
+                       list(mu = seq(1, 4, .5),
+                            sigma = seq(.5, 2, .5),
+                            Q = seq(-3, 3, 1)),
+                  times = seq(0, 30, 1))
+ggplot(haz_gengamma, aes(x = time, y = value, col = mu)) +
+  geom_line() + 
+  facet_wrap(sigma ~ Q,
+             ncol = length(levels(haz_gengamma$Q)),
+             scales = "free") +
+  xlab("Time") + ylab("Hazard") + 
+  theme(legend.position = "bottom") +
+  guides(col = guide_legend(nrow = 2, byrow = TRUE))
+```
